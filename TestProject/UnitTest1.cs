@@ -35,27 +35,16 @@ public class UnitTest1
 
             // Send a message to the external process
             var helloRequest = new HelloRequest { Name = "xUnit!" };
-            // string message = "Hello from xUnit!";
-            //byte[] messageBytes = Encoding.UTF8.GetBytes(message);
-            var messageBytes = helloRequest.ToByteArray();
-            pipeClient.Write(messageBytes, 0, messageBytes.Length);
-            pipeClient.Flush();
+            await pipeClient.WriteAsync(helloRequest);
 
             // Read the response
-            var buffer = ArrayPool<byte>.Shared.Rent(2048);
-            var bytesRead = await pipeClient.ReadAsync(buffer, 0, buffer.Length);
-
-            var helloReply = HelloReply.Parser.ParseFrom(buffer, 0, bytesRead);
+            var helloReply = await pipeClient.ReadAsync<HelloReply>();
             Assert.Equal("Hello from external process to xUnit!", helloReply.Message);
 
-
             helloRequest = new HelloRequest { Name = "Hello2" };
-            messageBytes = helloRequest.ToByteArray();
-            await pipeClient.WriteAsync(messageBytes, 0, messageBytes.Length);
-            pipeClient.Flush();
+            await pipeClient.WriteAsync(helloRequest);
 
-            bytesRead = pipeClient.Read(buffer, 0, buffer.Length);
-            helloReply = HelloReply.Parser.ParseFrom(buffer, 0, bytesRead);
+            helloReply = await pipeClient.ReadAsync<HelloReply>();
             Assert.Equal("Hello from external process to Hello2", helloReply.Message);
         }
 
