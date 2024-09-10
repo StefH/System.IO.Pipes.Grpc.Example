@@ -1,5 +1,5 @@
-﻿using System.IO.Pipes;
-using System.Text;
+﻿using System.Buffers;
+using System.IO.Pipes;
 using Google.Protobuf;
 using Greet;
 
@@ -8,20 +8,18 @@ using var pipeServer = new NamedPipeServerStream("testpipe", PipeDirection.InOut
 Console.WriteLine("Waiting for a client to connect...");
 pipeServer.WaitForConnection();
 
+while (pipeServer.IsConnected)
+{
+    // Read a message from the client
+    var buffer = ArrayPool<byte>.Shared.Rent(2048);
+    var bytesRead = await pipeServer.ReadAsync(buffer, 0, buffer.Length);
 
-// Read a message from the client
-byte[] buffer = new byte[2024];
-int bytesRead = pipeServer.Read(buffer, 0, buffer.Length);
+    var helloRequest = HelloRequest.Parser.ParseFrom(buffer, 0, bytesRead);
+    Console.WriteLine($"Received from client: {helloRequest.Name}");
 
-var helloRequest = HelloRequest.Parser.ParseFrom(buffer, 0, bytesRead);
-
-
-//string clientMessage = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-Console.WriteLine($"Received from client: {helloRequest.Name}");
-
-// Send a response
-//string response = "Hello from external process";
-//byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-var helloReply = new HelloReply { Message = "Hello from external process" };
-byte[] responseBytes = helloReply.ToByteArray();
-pipeServer.Write(responseBytes, 0, responseBytes.Length);
+    // Send a response
+    var helloReply = new HelloReply { Message = $"Hello from external process to {helloRequest.Name}" };
+    var responseBytes = helloReply.ToByteArray();
+    await pipeServer.WriteAsync(responseBytes, 0, responseBytes.Length);
+    await pipeServer.FlushAsync();
+}
