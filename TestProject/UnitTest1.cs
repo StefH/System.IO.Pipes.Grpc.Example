@@ -1,18 +1,20 @@
-using Google.Protobuf;
-using Greet;
-
-namespace TestProject;
-
-using System.Buffers;
 using System.Diagnostics;
 using System.IO.Pipes;
-using Xunit;
+using Grpc.Net.Client;
+using GrpcServer;
+
+namespace TestProject;
 
 public class UnitTest1
 {
     [Fact]
     public async Task TestExternalProcessCommunication()
     {
+        var helloRequest = new HelloRequest { Name = "xUnit!" };
+
+        var client = new Greeter.GreeterClient(GrpcChannel.ForAddress("http://localhost:5123"));
+        var response = client.SayHello(helloRequest);
+
         // Start the external process
         var process = new Process
         {
@@ -34,7 +36,6 @@ public class UnitTest1
             await pipeClient.ConnectAsync(5000); // Timeout after 1 seconds if no connection
 
             // Send a message to the external process
-            var helloRequest = new HelloRequest { Name = "xUnit!" };
             await pipeClient.WriteAsync(helloRequest);
 
             // Read the response
